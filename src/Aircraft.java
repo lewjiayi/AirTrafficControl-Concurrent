@@ -24,13 +24,29 @@ public class Aircraft implements Runnable {
 	private Runway runway;
 	private AirTrafficControl ATC;
 	private Clock clock;
+	private Airport airport;
 
-	public Aircraft(int status, AirTrafficControl ATC, Clock clock) {
+	public Aircraft(int status, Clock clock) {
 		setStatus(status);
 		flightNumber = generateName();
 		model = aircraftModels[r.nextInt(aircraftModels.length)];
-		this.ATC = ATC;
 		this.clock = clock;
+	}
+
+	public Aircraft(int status, Clock clock, Airport airport) {
+		setStatus(status);
+		flightNumber = generateName();
+		model = aircraftModels[r.nextInt(aircraftModels.length)];
+		this.clock = clock;
+		this.airport = airport;
+	}
+
+	public void landingOnAirport(Airport airport) {
+		this.airport = airport;
+	}
+
+	public void connectATC(AirTrafficControl ATC) {
+		this.ATC = ATC;
 	}
 
 	public String getFlightNumber() {
@@ -39,11 +55,6 @@ public class Aircraft implements Runnable {
 
 	public String getAircraftModel() {
 		return model;
-	}
-
-	public String changeFlightNumber() {
-		flightNumber = generateName(flightNumber);
-		return flightNumber;
 	}
 
 	public void setStatus(int status) {
@@ -58,13 +69,19 @@ public class Aircraft implements Runnable {
 				this.status = "Landed";
 				break;
 			case 4:
-				this.status = "Depart Queue";
+				this.status = "In Airport";
 				break;
 			case 5:
-				this.status = "Departing";
+				this.status = "Depart Queue";
 				break;
 			case 6:
+				this.status = "Departing";
+				break;
+			case 7:
 				this.status = "Departed";
+				break;
+			case 8:
+				this.status = "Others";
 				break;
 		}
 	}
@@ -82,64 +99,118 @@ public class Aircraft implements Runnable {
 		return flightNumber;
 	}
 
-	private String generateName(String origName) {
-		String flightNumber = origName.substring(0, 3);
-		for (int i = 0; i <= 4; i++) {
+	private void changeFlightNumber() {
+		flightNumber = flightNumber.substring(0, 3);
+		for (int i = 0; i < 4; i++) {
 			flightNumber += r.nextInt(10);
 		}
-		return flightNumber;
 	}
 
 	public void setRunway(Runway runway) {
 		this.runway = runway;
 	}
 
-	private void landing() {
-		System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is landing on "
-				+ runway.getName() + ".");
-		try {
-			Thread.sleep(10000);
-		} catch (InterruptedException e) {
-		}
-		System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  "
-				+ "Aircraft has successfully landed on " + runway.getName() + ".");
-	}
-
-	private void departing(boolean otherACQueuing) {
-		System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is departing on "
-				+ runway.getName() + ".");
-		try {
-			if (otherACQueuing) {
-				Thread.sleep(5000);
-			} else {
-				Thread.sleep(5000 + (r.nextInt(6) * 1000));
-			}
-		} catch (InterruptedException e) {
-		}
-		System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  "
-				+ "Aircraft has successfully departed from " + runway.getName() + ".");
-	}
-
 	public void run() {
-		synchronized (this) {
-			try {
-				this.wait();
-			} catch (InterruptedException e) {
-			}
+		loop: while (status != "Others") {
 			switch (status) {
 				case "Land Queue":
-					landing();
+					synchronized (this) {
+						try {
+							this.wait();
+						} catch (InterruptedException e) {
+						}
+					}
+					status = "Landing";
+					break;
+
+				case "Landing":
+					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is landing on "
+							+ runway.getName() + ".");
+					try {
+						Thread.sleep(10000);
+					} catch (InterruptedException e) {
+					}
+					status = "Landed";
+					break;
+
+				case "Landed":
+					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  "
+							+ "Aircraft has successfully landed on " + runway.getName() + ".");
+					synchronized (runway) {
+						runway.notify();
+					}
+					runway = null;
+					status = "In Airport";
+					break;
+
+				case "In Airport":
+					int maintainance = r.nextInt(100);
+					if (maintainance == 1) {
+						status = "Others";
+					} else {
+						String oldFlightNumber = flightNumber;
+						changeFlightNumber();
+						System.out.println(clock.getTime() + " || Flight " + oldFlightNumber + "   >>>>>  "
+								+ "Aircraft is for next flight. Flight number for new route  >>>  " + flightNumber);
+						try {
+							Thread.sleep((r.nextInt(3) + 1) * 1000);
+						} catch (InterruptedException e) {
+						}
+						System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is boarding.");
+						try {
+							Thread.sleep(5000 + (r.nextInt(1) * 1000));
+						} catch (InterruptedException e) {
+						}
+						AirTrafficControlDeparting ATCD = ATC.getATCD();
+						synchronized (ATCD) {
+							if (ATCD.isSendingTask()) {
+								try {
+									ATCD.wait();
+								} catch (InterruptedException e) {
+								}
+							}
+							ATCD.departingAircraft(this);
+							ATCD.notify();
+						}
+						status = "Depart Queue";
+					}
 					break;
 
 				case "Depart Queue":
-					departing(ATC.otherDepartQueuing());
+					synchronized (this) {
+						try {
+							this.wait();
+						} catch (InterruptedException e) {
+						}
+					}
+					status = "Departing";
 					break;
+
+				case "Departing":
+					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is departing on "
+							+ runway.getName() + ".");
+					try {
+						if (ATC.otherDepartQueuing()) {
+							Thread.sleep(5000);
+						} else {
+							Thread.sleep(5000 + (r.nextInt(6) * 1000));
+						}
+					} catch (InterruptedException e) {
+					}
+					status = "Departed";
+					break;
+
+				case "Departed":
+					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  "
+							+ "Aircraft has successfully departed from " + runway.getName() + ".");
+					synchronized (runway) {
+						runway.notify();
+					}
+					airport.aicraftDeparted(this);
+					airport = null;
+					runway = null;
+					break loop;
 			}
 		}
-		synchronized (runway) {
-			runway.notify();
-		}
-		runway = null;
 	}
-
 }

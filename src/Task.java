@@ -2,6 +2,8 @@ public class Task {
 	private Aircraft aircraft;
 	private char task;
 	private char priority;
+	private Airport destination;
+	private int requeueCount = 0;
 
 	// Task
 	// D --- Depart
@@ -17,6 +19,17 @@ public class Task {
 		this.priority = priority;
 	}
 
+	public Task(Aircraft aircraft, char task, char priority, Airport destination) {
+		this.aircraft = aircraft;
+		this.task = task;
+		this.priority = priority;
+		this.destination = destination;
+	}
+
+	public Airport getDestination() {
+		return destination;
+	}
+
 	public char getTaskName() {
 		return task;
 	}
@@ -27,6 +40,13 @@ public class Task {
 
 	public char getPriority() {
 		return priority;
+	}
+
+	public void requeue() {
+		requeueCount++;
+		if (requeueCount >= 2) {
+			priority = 'H';
+		}
 	}
 
 }

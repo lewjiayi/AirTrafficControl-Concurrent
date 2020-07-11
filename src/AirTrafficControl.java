@@ -7,32 +7,61 @@ public class AirTrafficControl implements Runnable {
 	private Integer landingQueueCount = 0;
 	private Integer departingQueueCount = 0;
 	private Clock clock;
+	private Airport airport;
+	private String newTask;
+	private boolean isCreatingTask = false;
+	private AirTrafficControlDeparting ATCD;
+	private AirTrafficControlIncoming ATCI;
+	private Thread tATCD;
+	private Thread tATCI;
 
-	public AirTrafficControl(PriorityBlockingQueue<Task> taskQueue, Clock clock) {
+	public AirTrafficControl(PriorityBlockingQueue<Task> taskQueue, Clock clock, Airport airport) {
 		this.taskQueue = taskQueue;
 		this.clock = clock;
-		for (int i = 0; i < 3; i++) {
-			Task task = incomingAircraft();
+		this.airport = airport;
+		for (int i = 0; i < 2; i++) {
+			Aircraft aircraft = new Aircraft(1, clock);
+			aircraft.connectATC(this);
+			Thread t = new Thread(aircraft);
+			t.start();
+			Task task = new Task(aircraft, 'L', 'N', this.airport);
 			taskQueue.put(task);
 			System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
 					+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to land.");
 		}
+		for (int i = 0; i < 3; i++) {
+			Aircraft aircraft = new Aircraft(5, clock, this.airport);
+			aircraft.connectATC(this);
+			airport.initialAircraft(aircraft);
+			Thread t = new Thread(aircraft);
+			t.start();
+			Task task = new Task(aircraft, 'D', 'N');
+			taskQueue.put(task);
+			System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
+					+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to depart.");
+		}
+		ATCD = new AirTrafficControlDeparting(this, clock, this.airport);
+		ATCI = new AirTrafficControlIncoming(this, clock);
+		tATCD = new Thread(ATCD);
+		tATCI = new Thread(ATCI);
 	}
 
-	private Task incomingAircraft() {
-		Aircraft aircraft = new Aircraft(1, this, clock);
+	private Task newLandingTask() {
+		Aircraft aircraft = ATCI.getAircraft();
+		aircraft.connectATC(this);
 		Thread t = new Thread(aircraft);
 		t.start();
 		int priority = r.nextInt(100);
 		if (priority == 0) {
-			return new Task(aircraft, 'L', 'H');
+			return new Task(aircraft, 'L', 'H', this.airport);
 		} else {
-			return new Task(aircraft, 'L', 'N');
+			return new Task(aircraft, 'L', 'N', this.airport);
 		}
 	}
 
-	private Task outgoingAircraft() {
-		Aircraft aircraft = new Aircraft(4, this, clock);
+	private Task newDepartingTask() {
+		Aircraft aircraft = ATCD.getAircraft();
+		aircraft.connectATC(this);
 		Thread t = new Thread(aircraft);
 		t.start();
 		int priority = r.nextInt(100);
@@ -43,12 +72,18 @@ public class AirTrafficControl implements Runnable {
 		}
 	}
 
-	public void aircraftLanding() {
-		landingQueueCount--;
+	public void setNewTask(String newTask) {
+		isCreatingTask = true;
+		this.newTask = newTask;
 	}
 
-	public void aircraftDeparting() {
-		departingQueueCount--;
+	public void taskRequeue(Task task) {
+		task.requeue();
+		taskQueue.add(task);
+	}
+
+	public AirTrafficControlDeparting getATCD() {
+		return this.ATCD;
 	}
 
 	public boolean otherDepartQueuing() {
@@ -60,43 +95,65 @@ public class AirTrafficControl implements Runnable {
 		return false;
 	}
 
+	public boolean isCreatingTask() {
+		return isCreatingTask;
+	}
+
+	private int checkLandQueueCount() {
+		int count = 0;
+		for (Task t : taskQueue) {
+			if (t.getTaskName() == 'L') {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	private int checkDepartQueueCount() {
+		int count = 0;
+		for (Task t : taskQueue) {
+			if (t.getTaskName() == 'D') {
+				count++;
+			}
+		}
+		return count;
+	}
+
 	public void run() {
+		tATCD.start();
+		tATCI.start();
 		Task task;
 		while (true) {
-			landingQueueCount = 0;
-			departingQueueCount = 0;
-			for (Task t : taskQueue) {
-				if (t.getTaskName() == 'L') {
-					landingQueueCount++;
-				} else {
-					departingQueueCount++;
-				}
-			}
-
-			if (landingQueueCount < 5) {
-				task = incomingAircraft();
-				taskQueue.offer(task);
-				landingQueueCount++;
-				System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
-						+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to land.");
+			synchronized (this) {
 				try {
-					Thread.sleep(1000 + (r.nextInt(10) * 100));
+					this.wait();
 				} catch (InterruptedException e) {
 				}
-			}
 
-			if (departingQueueCount < 5) {
-				task = outgoingAircraft();
-				taskQueue.offer(task);
-				departingQueueCount++;
-				System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
-						+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to depart.");
-				try {
-					Thread.sleep(1000 + (r.nextInt(10) * 100));
-				} catch (InterruptedException e) {
+				switch (newTask) {
+					case "Land":
+						if (checkLandQueueCount() < 5) {
+							task = newLandingTask();
+							taskQueue.offer(task);
+							landingQueueCount++;
+							System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
+									+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to land.");
+						}
+						break;
+
+					case "Depart":
+						if (checkDepartQueueCount() < 5) {
+							task = newDepartingTask();
+							taskQueue.offer(task);
+							departingQueueCount++;
+							System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
+									+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to depart.");
+						}
+						break;
 				}
+				isCreatingTask = false;
+				this.notifyAll();
 			}
 		}
 	}
-
 }
