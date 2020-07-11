@@ -1,4 +1,3 @@
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.Random;
 
 // Status
@@ -148,17 +147,21 @@ public class Aircraft implements Runnable {
 					if (maintainance == 1) {
 						status = "Others";
 					} else {
+						try {
+							Thread.sleep((r.nextInt(5) + 1) * 1000);
+						} catch (InterruptedException e) {
+						}
 						String oldFlightNumber = flightNumber;
 						changeFlightNumber();
 						System.out.println(clock.getTime() + " || Flight " + oldFlightNumber + "   >>>>>  "
-								+ "Aircraft is for next flight. Flight number for new route  >>>  " + flightNumber);
+								+ "Aircraft is ready for next flight. Flight number for new route  >>>  " + flightNumber);
 						try {
 							Thread.sleep((r.nextInt(3) + 1) * 1000);
 						} catch (InterruptedException e) {
 						}
 						System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is boarding.");
 						try {
-							Thread.sleep(5000 + (r.nextInt(1) * 1000));
+							Thread.sleep((r.nextInt(6) + 5) * 1000);
 						} catch (InterruptedException e) {
 						}
 						AirTrafficControlDeparting ATCD = ATC.getATCD();
@@ -191,9 +194,9 @@ public class Aircraft implements Runnable {
 							+ runway.getName() + ".");
 					try {
 						if (ATC.otherDepartQueuing()) {
-							Thread.sleep(5000);
+							Thread.sleep((r.nextInt(3) + 3) * 1000);
 						} else {
-							Thread.sleep(5000 + (r.nextInt(6) * 1000));
+							Thread.sleep((r.nextInt(8) + 3) * 1000);
 						}
 					} catch (InterruptedException e) {
 					}

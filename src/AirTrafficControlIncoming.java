@@ -32,13 +32,12 @@ public class AirTrafficControlIncoming implements Runnable {
 				ATC.setNewTask("Land");
 				ATC.notify();
 			}
-			try {
-				Thread.sleep(1000 + (r.nextInt(5) * 1000));
-			} catch (InterruptedException e) {
+			synchronized (this) {
+				try {
+					this.wait((r.nextInt(26) + 5) * 1000);
+				} catch (InterruptedException e) {
+				}
 			}
-
 		}
-
 	}
-
 }

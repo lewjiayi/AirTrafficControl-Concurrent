@@ -1,15 +1,10 @@
-import java.util.Random;
-
 public class AirTrafficControlDeparting implements Runnable {
 	private AirTrafficControl ATC;
-	private Clock clock;
-	private Random r = new Random();
 	private Aircraft aircraft;
 	private boolean isSendingTask = false;
 
-	public AirTrafficControlDeparting(AirTrafficControl ATC, Clock clock, Airport airport) {
+	public AirTrafficControlDeparting(AirTrafficControl ATC) {
 		this.ATC = ATC;
-		this.clock = clock;
 	}
 
 	public void departingAircraft(Aircraft aircraft) {
@@ -47,11 +42,8 @@ public class AirTrafficControlDeparting implements Runnable {
 			}
 
 			synchronized (this) {
-				this.notifyAll();
+				this.notify();
 			}
-
 		}
-
 	}
-
 }

@@ -2,7 +2,6 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 public class Runway implements Runnable {
 
-	private boolean isOccupied;
 	private Aircraft aircraft;
 	PriorityBlockingQueue<Task> taskQueue = null;
 	private String name;
@@ -11,7 +10,6 @@ public class Runway implements Runnable {
 	private int taskDone = 0;
 
 	public Runway(PriorityBlockingQueue<Task> taskQueue, String name, Clock clock, AirTrafficControl ATC) {
-		this.isOccupied = false;
 		this.taskQueue = taskQueue;
 		this.name = name;
 		this.clock = clock;
@@ -22,14 +20,9 @@ public class Runway implements Runnable {
 		return name;
 	}
 
-	public boolean getIsOccupied() {
-		return isOccupied;
-	}
-
 	public void run() {
 		Task task;
 		while (true) {
-			isOccupied = true;
 			task = taskQueue.poll();
 			if (task != null) {
 				aircraft = task.getTaskAircraft();
@@ -59,10 +52,22 @@ public class Runway implements Runnable {
 					System.out.println(clock.getTime() + " || " + name + "         >>>>>  " + "Runway is cleared for next task. "
 							+ taskDone + " task(s) done.");
 				}
+				task = null;
+				aircraft = null;
+			} else {
+				synchronized (taskQueue) {
+					try {
+						taskQueue.wait(30000);
+					} catch (InterruptedException e) {
+					}
+				}
+				if (taskQueue.peek() == null) {
+					AirTrafficControlIncoming ATCI = ATC.getATCI();
+					synchronized (ATCI) {
+						ATCI.notify();
+					}
+				}
 			}
-			task = null;
-			aircraft = null;
-			isOccupied = false;
 		}
 	}
 }

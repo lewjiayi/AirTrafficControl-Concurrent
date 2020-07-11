@@ -1,6 +1,5 @@
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.Comparator;
-import java.util.ArrayList;
 
 public class Main {
 	public static void main(String[] args) {
@@ -26,19 +25,5 @@ public class Main {
 		tRunway1.start();
 		tRunway2.start();
 		tRunway3.start();
-
-		// ArrayList<String> aircraft = new ArrayList<String>();
-		// aircraft.add("AA");
-		// aircraft.add("BB");
-		// aircraft.add("CC");
-		// aircraft.add("DD");
-		// for (String a : aircraft) {
-		// System.out.println(a);
-		// }
-		// String b = aircraft.remove(0);
-		// for (String a : aircraft) {
-		// System.out.println(a);
-		// }
-		// System.out.println(b);
 	}
 }

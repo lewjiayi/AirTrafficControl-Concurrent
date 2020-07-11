@@ -35,5 +35,4 @@ public class Airport {
 		}
 		aircrafts.remove(index);
 	}
-
 }

@@ -27,7 +27,7 @@ public class AirTrafficControl implements Runnable {
 			Task task = new Task(aircraft, 'L', 'N', this.airport);
 			taskQueue.put(task);
 			System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
-					+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to land.");
+					+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to	land.");
 		}
 		for (int i = 0; i < 3; i++) {
 			Aircraft aircraft = new Aircraft(5, clock, this.airport);
@@ -38,9 +38,9 @@ public class AirTrafficControl implements Runnable {
 			Task task = new Task(aircraft, 'D', 'N');
 			taskQueue.put(task);
 			System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
-					+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to depart.");
+					+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to	depart.");
 		}
-		ATCD = new AirTrafficControlDeparting(this, clock, this.airport);
+		ATCD = new AirTrafficControlDeparting(this);
 		ATCI = new AirTrafficControlIncoming(this, clock);
 		tATCD = new Thread(ATCD);
 		tATCI = new Thread(ATCI);
@@ -86,6 +86,10 @@ public class AirTrafficControl implements Runnable {
 		return this.ATCD;
 	}
 
+	public AirTrafficControlIncoming getATCI() {
+		return this.ATCI;
+	}
+
 	public boolean otherDepartQueuing() {
 		for (Task t : taskQueue) {
 			if (t.getTaskName() == 'D') {
@@ -129,7 +133,6 @@ public class AirTrafficControl implements Runnable {
 					this.wait();
 				} catch (InterruptedException e) {
 				}
-
 				switch (newTask) {
 					case "Land":
 						if (checkLandQueueCount() < 5) {
@@ -152,7 +155,13 @@ public class AirTrafficControl implements Runnable {
 						break;
 				}
 				isCreatingTask = false;
-				this.notifyAll();
+				this.notify();
+			}
+
+			if (taskQueue.size() == 1) {
+				synchronized (taskQueue) {
+					taskQueue.notify();
+				}
 			}
 		}
 	}
