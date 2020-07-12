@@ -1,12 +1,15 @@
 import java.util.Random;
 
 // Status
-// 1 ---Land Queue
-// 2 ---Landing
-// 3 ---Landed
-// 4 ---Depart Queue
-// 5 ---Departing
-// 6 ---Departed
+// 1 --- Land Queue
+// 2 --- Landing
+// 3 --- Landed
+// 4 --- Deboarding
+// 5 --- Boarding
+// 6 --- Depart Queue
+// 7 --- Departing
+// 8 --- Departed
+// 9 --- Others (Left Airport)
 
 // Priority
 // 1 --- High Priority
@@ -24,16 +27,19 @@ public class Aircraft implements Runnable {
 	private AirTrafficControl ATC;
 	private Clock clock;
 	private Airport airport;
+	private boolean isRunningThread = false;
 
-	public Aircraft(int status, Clock clock) {
-		setStatus(status);
+	// Generate landing aircraft, aircraft not in airport yet
+	public Aircraft(String status, Clock clock) {
+		this.status = status;
 		flightNumber = generateName();
 		model = aircraftModels[r.nextInt(aircraftModels.length)];
 		this.clock = clock;
 	}
 
-	public Aircraft(int status, Clock clock, Airport airport) {
-		setStatus(status);
+	// Generate departing aircraft, aircraft is in airport
+	public Aircraft(String status, Clock clock, Airport airport) {
+		this.status = status;
 		flightNumber = generateName();
 		model = aircraftModels[r.nextInt(aircraftModels.length)];
 		this.clock = clock;
@@ -56,36 +62,16 @@ public class Aircraft implements Runnable {
 		return model;
 	}
 
-	public void setStatus(int status) {
-		switch (status) {
-			case 1:
-				this.status = "Land Queue";
-				break;
-			case 2:
-				this.status = "Landing";
-				break;
-			case 3:
-				this.status = "Landed";
-				break;
-			case 4:
-				this.status = "In Airport";
-				break;
-			case 5:
-				this.status = "Depart Queue";
-				break;
-			case 6:
-				this.status = "Departing";
-				break;
-			case 7:
-				this.status = "Departed";
-				break;
-			case 8:
-				this.status = "Others";
-				break;
-		}
+	public boolean isRunningThread() {
+		return isRunningThread;
+	}
+
+	public void startThread() {
+		isRunningThread = true;
 	}
 
 	private String generateName() {
+		// Generate a flight number with 2 random alphabets and 4 numbers
 		String flightNumber;
 		StringBuilder sb = new StringBuilder(2);
 		for (int i = 0; i < 2; i++) {
@@ -99,10 +85,15 @@ public class Aircraft implements Runnable {
 	}
 
 	private void changeFlightNumber() {
+		// Change flight number last 4 digits, the alphabets are retained
 		flightNumber = flightNumber.substring(0, 3);
 		for (int i = 0; i < 4; i++) {
 			flightNumber += r.nextInt(10);
 		}
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
 	}
 
 	public void setRunway(Runway runway) {
@@ -114,6 +105,7 @@ public class Aircraft implements Runnable {
 			switch (status) {
 				case "Land Queue":
 					synchronized (this) {
+						// Waiitng in queue for runway to land
 						try {
 							this.wait();
 						} catch (InterruptedException e) {
@@ -126,6 +118,7 @@ public class Aircraft implements Runnable {
 					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is landing on "
 							+ runway.getName() + ".");
 					try {
+						// Landing on runway
 						Thread.sleep(10000);
 					} catch (InterruptedException e) {
 					}
@@ -135,51 +128,71 @@ public class Aircraft implements Runnable {
 				case "Landed":
 					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  "
 							+ "Aircraft has successfully landed on " + runway.getName() + ".");
+					// Aircraft left runway, notify runway for next task
 					synchronized (runway) {
 						runway.notify();
 					}
+					// Remove runway instance from aircraft
 					runway = null;
-					status = "In Airport";
+					status = "Deboarding";
 					break;
 
-				case "In Airport":
+				case "Deboarding":
+					try {
+						// Moving to deboard
+						Thread.sleep((r.nextInt(5) + 3) * 1000);
+					} catch (InterruptedException e) {
+					}
+					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is deboarding.");
+					try {
+						// Deboarding passenger & System check for next flight
+						Thread.sleep((r.nextInt(10) + 5) * 1000);
+					} catch (InterruptedException e) {
+					}
 					int maintainance = r.nextInt(100);
 					if (maintainance == 1) {
+						// 1% chance aircraft sent for maintanance
 						status = "Others";
 					} else {
-						try {
-							Thread.sleep((r.nextInt(5) + 1) * 1000);
-						} catch (InterruptedException e) {
-						}
+						// Change flight number for next flight
 						String oldFlightNumber = flightNumber;
 						changeFlightNumber();
 						System.out.println(clock.getTime() + " || Flight " + oldFlightNumber + "   >>>>>  "
 								+ "Aircraft is ready for next flight. Flight number for new route  >>>  " + flightNumber);
 						try {
-							Thread.sleep((r.nextInt(3) + 1) * 1000);
+							// Getting ready for boarding
+							Thread.sleep((r.nextInt(3) + 3) * 1000);
 						} catch (InterruptedException e) {
 						}
-						System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is boarding.");
-						try {
-							Thread.sleep((r.nextInt(6) + 5) * 1000);
-						} catch (InterruptedException e) {
-						}
-						AirTrafficControlDeparting ATCD = ATC.getATCD();
-						synchronized (ATCD) {
-							if (ATCD.isSendingTask()) {
-								try {
-									ATCD.wait();
-								} catch (InterruptedException e) {
-								}
+						status = "Boarding";
+					}
+					break;
+
+				case "Boarding":
+					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is boarding.");
+					try {
+						// Passenger boarding Aircraft
+						Thread.sleep((r.nextInt(6) + 5) * 1000);
+					} catch (InterruptedException e) {
+					}
+					// Requesting ATC to depart
+					AirTrafficControlDeparting ATCD = ATC.getATCD();
+					synchronized (ATCD) {
+						ATCD.departRequest(this);
+						ATCD.notify();
+					}
+					while (status == "Boarding") {
+						synchronized (this) {
+							try {
+								this.wait();
+							} catch (InterruptedException e) {
 							}
-							ATCD.departingAircraft(this);
-							ATCD.notify();
 						}
-						status = "Depart Queue";
 					}
 					break;
 
 				case "Depart Queue":
+					// Waiting in queue to use runway
 					synchronized (this) {
 						try {
 							this.wait();
@@ -190,9 +203,11 @@ public class Aircraft implements Runnable {
 					break;
 
 				case "Departing":
+					// Departing on runway
 					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  " + "Aircraft is departing on "
 							+ runway.getName() + ".");
 					try {
+						// Check if any other aircraft is waiting in queue to depart
 						if (ATC.otherDepartQueuing()) {
 							Thread.sleep((r.nextInt(3) + 3) * 1000);
 						} else {
@@ -206,12 +221,12 @@ public class Aircraft implements Runnable {
 				case "Departed":
 					System.out.println(clock.getTime() + " || Flight " + flightNumber + "   >>>>>  "
 							+ "Aircraft has successfully departed from " + runway.getName() + ".");
+					// Aircraft left runway, notify runway for next task
 					synchronized (runway) {
 						runway.notify();
 					}
+					// Update airport aircraft had left
 					airport.aicraftDeparted(this);
-					airport = null;
-					runway = null;
 					break loop;
 			}
 		}
