@@ -14,8 +14,12 @@ public class Main {
 		Runway runway2 = new Runway(taskQueue, "Runway 2", clock, ATC);
 		Runway runway3 = new Runway(taskQueue, "Runway 3", clock, ATC);
 
-		// Setting up initial task when program is created
-		for (int i = 0; i < 3; i++) {
+		Thread tRunway1 = new Thread(runway1);
+		Thread tRunway2 = new Thread(runway2);
+		Thread tRunway3 = new Thread(runway3);
+
+		// Setting up initial aircraft and task
+		for (int i = 0; i < 2; i++) {
 			Aircraft aircraft = new Aircraft("Land Queue", clock);
 			aircraft.connectATC(ATC);
 			Thread t = new Thread(aircraft);
@@ -25,17 +29,13 @@ public class Main {
 			System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
 					+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to	land.");
 		}
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 2; i++) {
 			Aircraft aircraft = new Aircraft("Boarding", clock, airport);
 			aircraft.connectATC(ATC);
 			airport.addAircraft(aircraft);
 			Thread t = new Thread(aircraft);
 			t.start();
 		}
-
-		Thread tRunway1 = new Thread(runway1);
-		Thread tRunway2 = new Thread(runway2);
-		Thread tRunway3 = new Thread(runway3);
 
 		tRunway1.start();
 		tRunway2.start();

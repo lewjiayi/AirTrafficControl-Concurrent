@@ -42,6 +42,7 @@ public class Task {
 		return priority;
 	}
 
+	// If the task is being requeue for 2 times, set it to high priority
 	public void requeue() {
 		requeueCount++;
 		if (requeueCount >= 2) {

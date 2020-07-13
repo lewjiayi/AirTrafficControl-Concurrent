@@ -5,7 +5,6 @@ import java.util.Queue;;
 
 public class AirTrafficControlDeparting implements Runnable {
 	private AirTrafficControl ATC;
-	private boolean isSendingTask = false;
 	private Random r = new Random();
 	private Clock clock;
 	private Airport airport;
@@ -24,10 +23,7 @@ public class AirTrafficControlDeparting implements Runnable {
 		requestList.add(aircraft);
 	}
 
-	public boolean isSendingTask() {
-		return isSendingTask;
-	}
-
+	// Check number of depart task in queue
 	private int checkDepartQueueCount() {
 		int count = 0;
 		for (Task t : taskQueue) {
@@ -38,6 +34,7 @@ public class AirTrafficControlDeparting implements Runnable {
 		return count;
 	}
 
+	// Create task based of the request list
 	private Task newDepartingTask() {
 		Aircraft aircraft = requestList.poll();
 		// Connect the aircraft with ATC to proceed further actions
@@ -59,15 +56,20 @@ public class AirTrafficControlDeparting implements Runnable {
 		Task task;
 		synchronized (this) {
 			while (true) {
-				this.notifyAll();
 				try {
-					this.wait((r.nextInt(10) + 5) * 1000);
+					// Wait for 20 to 30 seconds timeout, to prevent starvation
+					// When the thread wake up after timeout it will create a random aircraft
+					// This is also simulating real life airport where aircraft will be added to
+					// airport for various other reasons than landing
+					this.wait((r.nextInt(11) + 20) * 1000);
 				} catch (InterruptedException e) {
 				}
 				if (requestList.peek() != null) {
+					// Limit depart tasks in queue to 5,which is half of the desired task queue size
 					if (checkDepartQueueCount() < 5) {
 						task = newDepartingTask();
 						taskQueue.offer(task);
+						// Update and notify aircraft new status
 						Aircraft aircraft = task.getTaskAircraft();
 						aircraft.setStatus("Depart Queue");
 						synchronized (aircraft) {
@@ -75,23 +77,22 @@ public class AirTrafficControlDeparting implements Runnable {
 						}
 						System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
 								+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to depart.");
-						isSendingTask = false;
 					}
 				} else {
 					if (checkDepartQueueCount() < 5) {
-						// Force create a new aircraft
+						// Force create a new aircraft and start the thread
 						Aircraft temp = new Aircraft("Boarding", clock, airport);
 						temp.connectATC(ATC);
 						airport.addAircraft(temp);
 						Thread t = new Thread(temp);
 						t.start();
-						// During starvation, there airport will never have more than 3 aircrafts,
-						// Hence, there is no need to check airport size
 					}
 				}
+
+				// After processes above, the queue size is one means the queue was empty
+				// Notify runway that is waiting on task queue for new task
 				if (taskQueue.size() == 1) {
 					synchronized (taskQueue) {
-						// Notify runway which are waiting for new task
 						taskQueue.notify();
 					}
 				}

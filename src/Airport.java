@@ -28,13 +28,6 @@ public class Airport {
 			}
 			index++;
 		}
-		if (index >= aircrafts.size()) {
-			System.out.println(index);
-			System.out.println(aircraft.getFlightNumber());
-			for (Aircraft a : aircrafts) {
-				System.out.println(a.getFlightNumber());
-			}
-		}
 		aircrafts.remove(index);
 	}
 }

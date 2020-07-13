@@ -5,7 +5,6 @@ public class AirTrafficControlIncoming implements Runnable {
 	private AirTrafficControl ATC;
 	private Clock clock;
 	private Random r = new Random();
-	private Aircraft aircraft;
 	private Airport airport;
 	PriorityBlockingQueue<Task> taskQueue;
 
@@ -25,10 +24,6 @@ public class AirTrafficControlIncoming implements Runnable {
 			}
 		}
 		return count;
-	}
-
-	public Aircraft getAircraft() {
-		return aircraft;
 	}
 
 	private Task newLandingTask() {
@@ -53,18 +48,23 @@ public class AirTrafficControlIncoming implements Runnable {
 		synchronized (this) {
 			while (true) {
 				try {
-					this.wait((r.nextInt(10) + 5) * 1000);
+					// Wait for 20 to 30 seconds timeout
+					// When the thread wake up after timeout it will create a random aircraft
+					// The thread can also be woken up by runway to prevent starvation
+					this.wait((r.nextInt(11) + 20) * 1000);
 				} catch (InterruptedException e) {
 				}
+				// Limit land tasks in queue to 5,which is half of the desired task queue size
 				if (checkLandQueueCount() < 5) {
 					task = newLandingTask();
 					taskQueue.offer(task);
 					System.out.println(clock.getTime() + " || ATC              >>>>>  Flight "
 							+ task.getTaskAircraft().getFlightNumber() + " is waiting in queue to land.");
 				}
+				// After processes above, the queue size is one means the queue was empty
+				// Notify runway that is waiting on task queue for new task
 				if (taskQueue.size() == 1) {
 					synchronized (taskQueue) {
-						// Notify runway which are waiting for new task
 						taskQueue.notify();
 					}
 				}

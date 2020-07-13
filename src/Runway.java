@@ -25,17 +25,17 @@ public class Runway implements Runnable {
 	public void run() {
 		Task task;
 		while (true) {
-			// Getting a task
+			// Getting a task from queue
 			task = taskQueue.poll();
 			if (task != null) {
 				aircraft = task.getTaskAircraft();
+				// if the task is landing. get permission to land from aiport
 				if (task.getTaskName() == 'L') {
-					// Getting permission to land
 					Airport airport = task.getDestination();
 					boolean permission = airport.permissionToLand(aircraft);
 
+					// If airport is full, requeue the task (wait for other aircraft to leave)
 					if (!permission) {
-						// If airport is full, requeue the task (wait for other aircraft to leave)
 						synchronized (ATC) {
 							ATC.taskRequeue(task);
 						}
@@ -64,6 +64,7 @@ public class Runway implements Runnable {
 				aircraft = null;
 			} else {
 				// If there is no task in queue, wait for 30 seconds timeout
+				// When a task is added this thread will be notified
 				synchronized (taskQueue) {
 					try {
 						taskQueue.wait(30000);
