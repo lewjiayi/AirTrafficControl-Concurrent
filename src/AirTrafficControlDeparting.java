@@ -39,10 +39,6 @@ public class AirTrafficControlDeparting implements Runnable {
 		Aircraft aircraft = requestList.poll();
 		// Connect the aircraft with ATC to proceed further actions
 		aircraft.connectATC(ATC);
-		// Create and run the aircraft thread
-		Thread t = new Thread(aircraft);
-		t.start();
-		aircraft.startThread();
 		// 1% chance an aircraft has a high priority to use the runway first
 		int priority = r.nextInt(100);
 		if (priority == 0) {

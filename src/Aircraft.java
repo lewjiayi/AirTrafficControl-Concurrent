@@ -27,7 +27,6 @@ public class Aircraft implements Runnable {
 	private AirTrafficControl ATC;
 	private Clock clock;
 	private Airport airport;
-	private boolean isRunningThread = false;
 
 	// Generate landing aircraft, aircraft not in airport yet
 	public Aircraft(String status, Clock clock) {
@@ -60,14 +59,6 @@ public class Aircraft implements Runnable {
 
 	public String getAircraftModel() {
 		return model;
-	}
-
-	public boolean isRunningThread() {
-		return isRunningThread;
-	}
-
-	public void startThread() {
-		isRunningThread = true;
 	}
 
 	private String generateName() {
@@ -153,6 +144,7 @@ public class Aircraft implements Runnable {
 					if (maintainance == 1) {
 						// 1% chance aircraft sent for maintanance
 						status = "Others";
+						airport.aicraftDeparted(this);
 					} else {
 						// Change flight number for next flight
 						String oldFlightNumber = flightNumber;
@@ -209,9 +201,9 @@ public class Aircraft implements Runnable {
 					try {
 						// Check if any other aircraft is waiting in queue to depart
 						if (ATC.otherDepartQueuing()) {
-							Thread.sleep((r.nextInt(3) + 3) * 1000);
+							Thread.sleep((r.nextInt(6) + 5) * 1000);
 						} else {
-							Thread.sleep((r.nextInt(8) + 3) * 1000);
+							Thread.sleep((r.nextInt(11) + 5) * 1000);
 						}
 					} catch (InterruptedException e) {
 					}

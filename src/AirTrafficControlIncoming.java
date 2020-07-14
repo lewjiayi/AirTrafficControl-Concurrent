@@ -33,7 +33,6 @@ public class AirTrafficControlIncoming implements Runnable {
 		// Create and run the aircraft thread
 		Thread t = new Thread(aircraft);
 		t.start();
-		aircraft.startThread();
 		// 1% chance an aircraft has a high priority to use the runway first
 		int priority = r.nextInt(100);
 		if (priority == 0) {
